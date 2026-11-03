@@ -24,20 +24,24 @@
   #rounds{margin-top:6px;font-size:15px;font-weight:600;color:var(--wood-d);background:var(--card);padding:5px 14px;border-radius:99px;pointer-events:none}
   #msg{height:20px;margin-top:2px;font-size:15px;font-weight:600;color:var(--gold-d);opacity:0;transition:opacity .4s;pointer-events:none}
   #msg.show{opacity:1}
-  .bot{position:fixed;left:0;right:0;bottom:0;padding:0 12px max(14px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+  .bot{position:fixed;left:0;right:0;bottom:0;padding:0 8px max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
   .bot>*{pointer-events:auto}
   .cnt{display:flex;align-items:center;gap:14px;pointer-events:none;margin-top:6px}
   .side{text-align:left}
-  .hint{font-size:13px;color:var(--muted);pointer-events:none;letter-spacing:.03em}
-  .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-  button{font:inherit;font-size:14px;font-weight:600;color:var(--wood-d);background:var(--card);border:1.5px solid #e2c697;border-radius:14px;padding:9px 14px;cursor:pointer;backdrop-filter:blur(6px)}
+  .hint{font-size:12px;color:var(--muted);pointer-events:none;letter-spacing:.03em}
+  .row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  button{font:inherit;font-size:12.5px;font-weight:600;color:var(--wood-d);background:var(--card);border:1.5px solid #e2c697;border-radius:12px;padding:7px 9px;cursor:pointer;backdrop-filter:blur(6px)}
   button:active{transform:scale(.96)}
   button.on{background:var(--gold);border-color:var(--gold-d);color:#4a2e14}
+  #flash{position:fixed;inset:0;pointer-events:none;opacity:0;box-shadow:inset 0 0 70px 18px #f2b134aa}
+  #hapL{position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:.01;pointer-events:none}
   #fail{position:fixed;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:30px;font-weight:600}
 </style>
 </head>
 <body>
 <div id="gl"></div>
+<div id="flash"></div>
+<label id="hapL"><input type="checkbox" switch id="hap"></label>
 <div class="vig"></div>
 <div class="hud">
   <input id="affirm" maxlength="80" placeholder="Type your affirmation / mantra here" autocomplete="off">
@@ -45,11 +49,13 @@
   <div id="msg">🔔 Round complete</div>
 </div>
 <div class="bot">
-  <div class="hint">swipe down with your thumb · pull one bead at a time</div>
+  <div class="hint" id="hintTxt">swipe down with your thumb</div>
   <div class="row">
+    <button id="hum" class="on">🌊 Calm hum</button>
+    <button id="one">☝ One per swipe</button>
     <button id="undo">↩ Undo</button>
     <button id="sound" class="on">🔔 Bowl sound</button>
-    <button id="vib" class="on">📳 Vibrate</button>
+    <button id="vib" class="on">📳 Haptic</button>
     <button id="reset">Reset</button>
   </div>
   <div class="hint" id="life"></div>
@@ -67,7 +73,7 @@
 (function(){
   var N=108, CYC=109, KEY="mala108.v2";
   var $=function(id){return document.getElementById(id)};
-  var st={n:0,rounds:0,life:0,text:"",sound:true,vib:true};
+  var st={n:0,rounds:0,life:0,text:"",sound:true,vib:true,one:false,hum:true};
   try{var s0=JSON.parse(localStorage.getItem(KEY)||"null");if(s0)for(var k in st)if(k in s0)st[k]=s0[k];}catch(e){}
   if(!(st.n>=0&&st.n<=N))st.n=0;
   var hist=[];
@@ -189,7 +195,7 @@
 
   // thread
   (function(){
-    var pts=[],t;for(t=-2.1;t<=2.1;t+=.3)pts.push(P(t,new THREE.Vector3()));
+    var pts=[],t;for(t=-3;t<=3;t+=.4)pts.push(P(t,new THREE.Vector3()));
     var tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),200,.03,8),new THREE.MeshStandardMaterial({color:0x4a140c,roughness:.8}));
     tube.receiveShadow=true;scene.add(tube);
   })();
@@ -215,23 +221,23 @@
 
   // ---------- state, layout ----------
   var p=0,pv=0,glide=0,PXB=80;
-  var SH=0.2;
+  var SH=0.2,GAP=1.5;
   var pivot=new THREE.Vector3();
   var tick=0;
   function layout(){
-    tick+=.04;halo.material.opacity=.45+.12*Math.sin(tick);
+    tick+=.04;halo.material.opacity=Math.min(1,.45+.12*Math.sin(tick)+.4*kick);halo.scale.setScalar(4.6*(1+.22*kick));
     var dG=cyc(0-st.n)-pv+glide;
     for(var j=0;j<CYC;j++){
       var m=beads[j],d=cyc(j-st.n)-pv+glide;
-      if(j!==0){var c=d-dG;d+=SH*Math.max(-1,Math.min(1,c));}
-      var t=-d,vis=Math.abs(t)<1.9;
+      if(j!==0){var cl=function(v){return Math.max(-1,Math.min(1,v))};d+=SH*(cl(d-dG)-cl(0-dG));}
+      var t=-d,vis=Math.abs(t)<1.6;
       m.visible=vis;if(j===0)tassel.visible=vis;
       if(!vis){if(j!==0)m.material.emissiveIntensity=0;continue;}
-      var sc=Math.max(0.001,Math.min(1,(1.9-Math.abs(t))/0.6));m.scale.setScalar(sc);
-      P(t,m.position);
-      P(t+.02,tmpA);P(t-.02,tmpB);tv.subVectors(tmpA,tmpB).normalize();
+      var fe=Math.max(0.001,Math.min(1,(1.6-Math.abs(t))/0.5)),f=Math.max(0,1-Math.abs(t));f=f*f*(3-2*f);var sc=fe*.9*(1+.6*f);if(Math.abs(t)<.5)sc*=1+.07*kick;m.scale.setScalar(sc);
+      var sp=t*GAP;P(sp,m.position);
+      P(sp+.02,tmpA);P(sp-.02,tmpB);tv.subVectors(tmpA,tmpB).normalize();
       m.quaternion.setFromUnitVectors(UP,tv).multiply(spins[j]);
-      if(j!==0){var hl=Math.max(0,1-Math.abs(t)*2.2);m.material.emissiveIntensity=hl*hl*.4;}
+      if(j!==0){var hl=Math.max(0,1-Math.abs(t)*2.2);m.material.emissiveIntensity=hl*hl*.4+(Math.abs(t)<.5?.45*kick:0);}
       if(j===0){tassel.position.set(m.position.x+.78,m.position.y-.2,m.position.z+.55);tassel.rotation.z=.08;tassel.scale.setScalar(sc);}
     }
   }
@@ -259,13 +265,37 @@
     });
   }
 
+  // soft low hum with a slow tremble: a calm, "felt" sound for every bead
+  var NOTES=[174.6,196,220,261.6,293.7,261.6,220,196];
+  function hum(){
+    if(!st.hum)return;var c=actx();if(!c)return;var t=c.currentTime;
+    var f=NOTES[(st.n+8)%NOTES.length];
+    var master=c.createGain();master.gain.value=.0001;master.connect(c.destination);
+    master.gain.setValueAtTime(.0001,t);
+    master.gain.linearRampToValueAtTime(.2,t+.09);
+    master.gain.exponentialRampToValueAtTime(.0001,t+1.9);
+    var trem=c.createGain();trem.gain.value=.78;trem.connect(master);
+    var lfo=c.createOscillator(),ld=c.createGain();lfo.frequency.value=6.5;ld.gain.value=.22;lfo.connect(ld).connect(trem.gain);
+    [[f,1],[f*2,.28],[f*3,.07]].forEach(function(q){
+      var o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.value=q[0];g.gain.value=q[1];
+      o.connect(g).connect(trem);o.start(t);o.stop(t+2);
+    });
+    lfo.start(t);lfo.stop(t+2);
+  }
+
   // ---------- counting ----------
+  var kick=0;
+  function buzz(ms){
+    if(!st.vib)return;
+    if(navigator.vibrate){navigator.vibrate(ms||[90,50,90,50,200]);return;}
+    try{$("hapL").click();}catch(e){}   // iOS Safari 17.4+: toggling a switch input gives a tap haptic
+  }
   var elCount=$("count"),msgT=null;
   function ui(){
     elCount.textContent=st.n;
     $("rounds").textContent="Rounds: "+st.rounds;
     $("life").textContent="Lifetime beads: "+st.life.toLocaleString();
-    $("sound").className=st.sound?"on":"";$("vib").className=st.vib?"on":"";
+    $("sound").className=st.sound?"on":"";$("one").className=st.one?"on":"";$("hum").className=st.hum?"on":"";$("hintTxt").textContent=st.one?"one swipe = one bead":"swipe down · drag further to pull more beads";$("vib").className=st.vib?"on":"";
   }
   function count(){
     hist.push({n:st.n,rounds:st.rounds,life:st.life});if(hist.length>300)hist.shift();
@@ -274,13 +304,22 @@
     if(st.n===N){
       st.rounds++;bowl();
       $("msg").classList.add("show");clearTimeout(msgT);msgT=setTimeout(function(){$("msg").classList.remove("show")},3800);
-      if(st.vib&&navigator.vibrate)navigator.vibrate([60,40,120]);
-    }else if(st.vib&&navigator.vibrate)navigator.vibrate(12);
+      buzz(0);
+    }else{buzz(40);hum();}
+    kick=1;
     ui();save();
     elCount.classList.add("pop");setTimeout(function(){elCount.classList.remove("pop")},120);
   }
-  var dragging=false;
-  function add(d){p=Math.max(-.3,p+d);while(p>=1){p-=1;count();}}
+  var dragging=false,locked=false;
+  function add(d){
+    if(st.one){ // one swipe = one bead
+      if(locked)return;
+      p=Math.max(-.3,p+d);
+      if(p>=.6){p=0;count();locked=true;}
+      return;
+    }
+    p=Math.max(-.3,p+d);while(p>=1){p-=1;count();}
+  }
   function undo(){
     var h=hist.pop();if(!h)return;
     var one=cyc(st.n-h.n)===1;
@@ -294,23 +333,24 @@
 
   // ---------- input: swipe up / tap / wheel ----------
   var el=$("gl"),lastY=0,moved=0,wheelT=null;
-  el.addEventListener("pointerdown",function(e){dragging=true;moved=0;lastY=e.clientY;try{el.setPointerCapture(e.pointerId)}catch(_){}actx();});
+  el.addEventListener("pointerdown",function(e){dragging=true;locked=false;moved=0;lastY=e.clientY;try{el.setPointerCapture(e.pointerId)}catch(_){}actx();});
   el.addEventListener("pointermove",function(e){if(!dragging)return;var d=e.clientY-lastY;lastY=e.clientY;moved+=Math.abs(d);add(d/PXB);});
-  function up(){if(!dragging)return;dragging=false;if(moved<6)p=Math.max(p,.55);}
+  function up(){if(!dragging)return;dragging=false;if(moved<6){count();}else if(st.one){if(!locked&&p>=.3){p=0;count();}}else if(p>=.5){p-=1;count();}}
   el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);
   el.addEventListener("wheel",function(e){
     e.preventDefault();dragging=true;add(-(e.deltaY+e.deltaX)/PXB*.9);
-    clearTimeout(wheelT);wheelT=setTimeout(function(){dragging=false},110);
+    clearTimeout(wheelT);wheelT=setTimeout(function(){dragging=false;locked=false},110);
   },{passive:false});
+  $("hum").addEventListener("click",function(){st.hum=!st.hum;ui();save();if(st.hum)hum();});
+  $("one").addEventListener("click",function(){st.one=!st.one;ui();save();});
   $("undo").addEventListener("click",undo);$("reset").addEventListener("click",reset);
   $("sound").addEventListener("click",function(){st.sound=!st.sound;ui();save();});
   $("vib").addEventListener("click",function(){st.vib=!st.vib;ui();save();});
-  if(!navigator.vibrate)$("vib").style.display="none";
   $("affirm").value=st.text;
   $("affirm").addEventListener("input",function(){st.text=$("affirm").value;save();});
   document.addEventListener("keydown",function(e){
     if(document.activeElement===$("affirm")){if(e.key==="Enter")$("affirm").blur();return;}
-    if(e.code==="Space"||e.key==="Enter"||e.key==="ArrowDown"){e.preventDefault();p=Math.max(p,.55);}
+    if(e.code==="Space"||e.key==="Enter"||e.key==="ArrowDown"){e.preventDefault();count();}
     else if(e.key==="Backspace"){e.preventDefault();undo();}
   });
 
@@ -325,12 +365,14 @@
     }
     pv+=(p-pv)*(1-Math.exp(-dt*32));
     if(glide!==0){glide*=Math.exp(-dt*10);if(Math.abs(glide)<.002)glide=0;}
+    kick*=Math.exp(-dt*7);if(kick<.003)kick=0;
+    camera.position.y=-.07*kick;$("flash").style.opacity=kick*.55;
     layout();
     renderer.render(scene,camera);
     requestAnimationFrame(frame);
   }
   ui();requestAnimationFrame(frame);
-  window.__mala={st:st,camera:camera,add:add};
+  window.__mala={st:st,camera:camera,add:add,dbg:function(){return JSON.stringify({p:p,pv:pv,glide:glide,kick:kick,dragging:dragging})}};
 })();
 </script>
 </body>
