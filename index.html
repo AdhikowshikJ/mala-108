@@ -189,7 +189,7 @@
 
   // thread
   (function(){
-    var pts=[],t;for(t=-16;t<=12;t+=.5)pts.push(P(t,new THREE.Vector3()));
+    var pts=[],t;for(t=-2.1;t<=2.1;t+=.3)pts.push(P(t,new THREE.Vector3()));
     var tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),200,.03,8),new THREE.MeshStandardMaterial({color:0x4a140c,roughness:.8}));
     tube.receiveShadow=true;scene.add(tube);
   })();
@@ -224,14 +224,15 @@
     for(var j=0;j<CYC;j++){
       var m=beads[j],d=cyc(j-st.n)-pv+glide;
       if(j!==0){var c=d-dG;d+=SH*Math.max(-1,Math.min(1,c));}
-      var t=-d,vis=t>-5.6&&t<3.6;
+      var t=-d,vis=Math.abs(t)<1.9;
       m.visible=vis;if(j===0)tassel.visible=vis;
       if(!vis){if(j!==0)m.material.emissiveIntensity=0;continue;}
+      var sc=Math.max(0.001,Math.min(1,(1.9-Math.abs(t))/0.6));m.scale.setScalar(sc);
       P(t,m.position);
       P(t+.02,tmpA);P(t-.02,tmpB);tv.subVectors(tmpA,tmpB).normalize();
       m.quaternion.setFromUnitVectors(UP,tv).multiply(spins[j]);
       if(j!==0){var hl=Math.max(0,1-Math.abs(t)*2.2);m.material.emissiveIntensity=hl*hl*.4;}
-      if(j===0){tassel.position.set(m.position.x+.78,m.position.y-.2,m.position.z+.55);tassel.rotation.z=.08;}
+      if(j===0){tassel.position.set(m.position.x+.78,m.position.y-.2,m.position.z+.55);tassel.rotation.z=.08;tassel.scale.setScalar(sc);}
     }
   }
   function resize(){
@@ -239,9 +240,9 @@
     renderer.setSize(w,h);camera.aspect=w/h;
     // keep the string comfortably in frame on narrow phones
     camera.fov=w/h<.7?44:36;
-    camera.updateProjectionMatrix();PXB=Math.max(120,Math.min(200,h*.2));
+    camera.updateProjectionMatrix();PXB=Math.max(120,Math.min(220,h*.22));
   }
-  camera.position.set(0,0,7.6);
+  camera.position.set(0,0,6.5);
   camera.lookAt(0,0,0);
   window.addEventListener("resize",resize);resize();
 
